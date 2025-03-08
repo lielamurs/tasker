@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -30,10 +31,11 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	server *Server
-	conn   *websocket.Conn
-	send   chan []byte
-	id     string
+	server   *Server
+	conn     *websocket.Conn
+	send     chan []byte
+	id       string
+	username string
 }
 
 func ServeWs(server *Server, w http.ResponseWriter, r *http.Request) {
@@ -51,10 +53,11 @@ func ServeWs(server *Server, w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		server: server,
-		conn:   conn,
-		send:   make(chan []byte, 256),
-		id:     clientID,
+		server:   server,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		id:       clientID,
+		username: "",
 	}
 	client.server.register <- client
 
@@ -76,14 +79,32 @@ func (c *Client) readService() {
 	})
 
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, rawMessage, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+
+		rawMessage = bytes.TrimSpace(bytes.Replace(rawMessage, newline, space, -1))
+		var clientMsg Message
+		if err := json.Unmarshal(rawMessage, &clientMsg); err != nil {
+			log.Printf("Error parsing message: %v", err)
+			continue
+		}
+
+		baseMsg := ClientMessage{
+			Type:     clientMsg.Type,
+			ClientID: c.id,
+			Data:     clientMsg.Data,
+		}
+
+		message, err := json.Marshal(baseMsg)
+		if err != nil {
+			log.Printf("Error creating message: %v", err)
+			continue
+		}
 		c.server.broadcast <- message
 	}
 }
