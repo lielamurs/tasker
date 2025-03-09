@@ -135,10 +135,13 @@ func (s *Server) handleSetUsername(req UsernameSetRequest) {
 	}
 
 	client.username = req.Username
+	log.Printf("Set username for client %s: %s", req.ClientID, req.Username)
+
 	var userTaskList *TaskList = nil
 	for _, taskList := range s.taskLists {
 		if taskList.OwnerID == req.ClientID {
 			userTaskList = taskList
+			log.Printf("Found existing task list %s for client %s", taskList.ID, req.ClientID)
 			break
 		}
 	}
@@ -166,6 +169,51 @@ func (s *Server) handleSetUsername(req UsernameSetRequest) {
 		log.Printf("Error marshaling message: %v", err)
 		return
 	}
+
+	client.send <- msgBytes
+
+	if userTaskList != nil {
+		s.sendTasksForTaskList(client, userTaskList)
+	}
+}
+
+func (s *Server) sendTasksForTaskList(client *Client, taskList *TaskList) {
+	s.taskMutex.RLock()
+	defer s.taskMutex.RUnlock()
+
+	tasks := make([]*Task, 0)
+	for taskID := range s.taskListTasks[taskList.ID] {
+		if task, ok := s.tasks[taskID]; ok {
+			tasks = append(tasks, task)
+		}
+	}
+
+	isOwner := taskList.OwnerID == client.id
+	resp := TaskListResponse{
+		TaskList: taskList,
+		Tasks:    tasks,
+		IsOwner:  isOwner,
+	}
+
+	respData, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("Error marshaling task list data: %v", err)
+		return
+	}
+
+	// Send the task list data message
+	msg := Message{
+		Type: "task_list_data",
+		Data: respData,
+	}
+
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling message: %v", err)
+		return
+	}
+
+	log.Printf("Sending task list data to client %s for task list %s with %d tasks", client.id, taskList.ID, len(tasks))
 	client.send <- msgBytes
 }
 
@@ -245,6 +293,7 @@ func (s *Server) handleGetTaskList(req TaskListGetRequest) {
 	taskList, exists := s.taskLists[req.TaskListID]
 	if !exists {
 		s.taskMutex.RUnlock()
+		log.Printf("Task list not found: %s", req.TaskListID)
 		sendError(client, "TASK_LIST_NOT_FOUND", "Task list not found")
 		return
 	}
@@ -255,8 +304,12 @@ func (s *Server) handleGetTaskList(req TaskListGetRequest) {
 			tasks = append(tasks, task)
 		}
 	}
+
 	isOwner := taskList.OwnerID == req.ClientID
 	s.taskMutex.RUnlock()
+
+	log.Printf("Client %s (%s) retrieved task list %s with %d tasks (owner: %v)",
+		req.ClientID, client.username, req.TaskListID, len(tasks), isOwner)
 
 	resp := TaskListResponse{
 		TaskList: taskList,

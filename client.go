@@ -52,17 +52,43 @@ func ServeWs(server *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Client connected/reconnected with ID: %s", clientID)
+
+	var username string
+	server.taskMutex.RLock()
+	for _, cl := range server.clients {
+		if cl.id == clientID && cl.username != "" {
+			username = cl.username
+			log.Printf("Reconnected client %s has username: %s", clientID, username)
+			break
+		}
+	}
+	server.taskMutex.RUnlock()
+
 	client := &Client{
 		server:   server,
 		conn:     conn,
 		send:     make(chan []byte, 256),
 		id:       clientID,
-		username: "",
+		username: username,
 	}
+
 	client.server.register <- client
 
 	go client.readService()
 	go client.writeService()
+
+	if username != "" {
+		fakeSetUsernameReq := UsernameSetRequest{
+			ClientID: clientID,
+			Username: username,
+		}
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			server.handleSetUsername(fakeSetUsernameReq)
+		}()
+	}
 }
 
 func (c *Client) readService() {
