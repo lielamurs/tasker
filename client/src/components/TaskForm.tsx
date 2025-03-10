@@ -1,60 +1,60 @@
-import { useState, useCallback, memo } from "react";
-import { useWebSocket } from "../hooks/useWebSocket";
+import { useId, FormEvent } from "react";
 
-const TaskForm = memo(function TaskForm() {
-  const { createTask } = useWebSocket();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+interface TaskFormProps {
+  onCreateTask: (title: string, description: string, parentId?: string) => void;
+  parentId?: string;
+}
 
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+export default function TaskForm({ onCreateTask, parentId }: TaskFormProps) {
+  const formId = useId();
+  const titleId = `title-${formId}`;
+  const descId = `description-${formId}`;
 
-      if (!title.trim()) return;
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
-      createTask({
-        title,
-        description,
-        completed: false,
-        subTasks: [],
-      });
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
 
-      // Reset form
-      setTitle("");
-      setDescription("");
-    },
-    [title, description, createTask],
-  );
+    if (title.trim()) {
+      onCreateTask(title, description, parentId);
+      form.reset();
+      // Focus the title input for quick successive task creation
+      const titleInput = form.elements.namedItem("title") as HTMLInputElement;
+      if (titleInput) titleInput.focus();
+    }
+  };
 
   return (
-    <form className="task-form" onSubmit={handleSubmit}>
-      <h2>Add New Task</h2>
+    <form
+      className={`task-form ${parentId ? "subtask-form" : ""}`}
+      onSubmit={handleSubmit}
+    >
+      <h3>{parentId ? "Add Subtask" : "Add New Task"}</h3>
       <div className="form-group">
-        <label htmlFor="title">Title:</label>
+        <label htmlFor={titleId}>Title:</label>
         <input
-          id="title"
+          id={titleId}
+          name="title"
           type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
           placeholder="Enter task title"
           required
         />
       </div>
       <div className="form-group">
-        <label htmlFor="description">Description:</label>
+        <label htmlFor={descId}>Description:</label>
         <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Enter task description"
+          id={descId}
+          name="description"
+          placeholder="Enter task description (optional)"
           rows={3}
         />
       </div>
       <button type="submit" className="create-button">
-        Create Task
+        {parentId ? "Add Subtask" : "Create Task"}
       </button>
     </form>
   );
-});
-
-export default TaskForm;
+}

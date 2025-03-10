@@ -1,31 +1,30 @@
-import { Suspense, lazy } from "react";
-import { WebSocketProvider } from "./contexts/WebSocketContext";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import "./App.css";
 
-// Lazy loading for better performance
-const TaskList = lazy(() => import("./components/TaskList"));
+// Lazy-loaded components
+const HomePage = lazy(() => import("./pages/HomePage"));
+const TaskListPage = lazy(() => import("./pages/TaskListPage"));
 
 export default function App() {
-  // In production, you'd get this from config or environment variables
-  const serverUrl = "ws://localhost:8080/ws";
-
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Collaborative To-Do List</h1>
-      </header>
-      <main className="app-main">
-        <ErrorBoundary>
-          <WebSocketProvider serverUrl={serverUrl}>
-            <Suspense fallback={<div className="loading">Loading...</div>}>
-              <TaskList />
-            </Suspense>
-          </WebSocketProvider>
-        </ErrorBoundary>
-      </main>
-      <footer className="app-footer">
-        <p>Collaborative To-Do App ©{new Date().getFullYear()}</p>
-      </footer>
-    </div>
+    <BrowserRouter>
+      <div className="app">
+        <header className="app-header">
+          <h1>Collaborative Task App</h1>
+        </header>
+        <main className="app-content">
+          <Suspense fallback={<div className="loading">Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/tasklist/:id" element={<TaskListPage />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <footer className="app-footer">
+          <p>Real-time Collaboration Demo &copy; {new Date().getFullYear()}</p>
+        </footer>
+      </div>
+    </BrowserRouter>
   );
 }

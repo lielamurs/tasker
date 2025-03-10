@@ -1,57 +1,69 @@
-import { memo } from "react";
-import Task from "./Task";
-import TaskForm from "./TaskForm";
-import { useWebSocket } from "../hooks/useWebSocket";
+import { useMemo, memo } from "react";
+import TaskItem from "./TaskItem";
+import { Task } from "../lib/websocket";
 
-// Using memo for performance optimization
-const TaskList = memo(function TaskList() {
-  const { tasks, isConnected, isReconnecting, reconnectAttempt, error } =
-    useWebSocket();
+interface TaskListProps {
+  tasks: Task[];
+  searchQuery?: string;
+  isLocked: boolean;
+  onUpdateTask: (
+    taskId: string,
+    title: string,
+    description: string,
+    completed: boolean,
+    parentId?: string,
+  ) => void;
+  onDeleteTask: (taskId: string) => void;
+  onAddTask: (title: string, description: string, parentId?: string) => void;
+}
 
-  if (!isConnected) {
+// Use memo to prevent unnecessary re-renders
+const TaskList = memo(function TaskList({
+  tasks,
+  searchQuery = "",
+  isLocked,
+  onUpdateTask,
+  onDeleteTask,
+  onAddTask,
+}: TaskListProps) {
+  // Filter tasks based on search query
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return tasks;
+
+    return tasks.filter(
+      (task) =>
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.description.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [tasks, searchQuery]);
+
+  // Get top-level tasks (no parentId)
+  const topLevelTasks = useMemo(
+    () => filteredTasks.filter((task) => !task.parentId),
+    [filteredTasks],
+  );
+
+  if (topLevelTasks.length === 0) {
     return (
-      <div className="connection-status">
-        {isReconnecting ? (
-          <div className="reconnecting">
-            <p>Reconnecting... (Attempt {reconnectAttempt})</p>
-            <div className="spinner"></div>
-          </div>
-        ) : (
-          <div className="disconnected">
-            <p>Disconnected from server</p>
-            {error && <p className="error">{error.message}</p>}
-          </div>
-        )}
+      <div className="no-tasks">
+        <p>No tasks yet. Create your first task!</p>
       </div>
     );
   }
 
-  // Only show top-level tasks (not subtasks)
-  const topLevelTasks = tasks.filter(
-    (task) =>
-      !tasks.some(
-        (parentTask) =>
-          parentTask.subTasks &&
-          parentTask.subTasks.some((subTask) => subTask.id === task.id),
-      ),
-  );
-
   return (
-    <div className="task-list">
-      <div className="connection-indicator connected">
-        <span className="status-dot"></span>
-        <span>Connected to server</span>
-      </div>
-
-      <TaskForm />
-
-      {topLevelTasks.length === 0 ? (
-        <div className="no-tasks">
-          <p>No tasks yet. Create your first task above!</p>
-        </div>
-      ) : (
-        topLevelTasks.map((task) => <Task key={task.id} task={task} />)
-      )}
+    <div className="tasks-list">
+      {topLevelTasks.map((task) => (
+        <TaskItem
+          key={task.id}
+          task={task}
+          allTasks={tasks}
+          isLocked={isLocked}
+          onUpdate={onUpdateTask}
+          onDelete={onDeleteTask}
+          onAddSubtask={onAddTask}
+        />
+      ))}
     </div>
   );
 });
