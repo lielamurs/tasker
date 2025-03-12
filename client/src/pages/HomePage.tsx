@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTaskStore } from "../store/taskStore";
 
@@ -18,13 +18,6 @@ export default function HomePage() {
   const [taskListIdInput, setTaskListIdInput] = useState("");
   const navigate = useNavigate();
 
-  // Redirect to task list if already exists
-  useEffect(() => {
-    if (taskList) {
-      navigate(`/tasklist/${taskList.id}`);
-    }
-  }, [taskList, navigate]);
-
   const handleSetUsername = (e: React.FormEvent) => {
     e.preventDefault();
     if (newUsername.trim()) {
@@ -43,6 +36,12 @@ export default function HomePage() {
     e.preventDefault();
     if (taskListIdInput.trim()) {
       navigate(`/tasklist/${taskListIdInput}`);
+    }
+  };
+
+  const handleGoToMyTaskList = () => {
+    if (taskList) {
+      navigate(`/tasklist/${taskList.id}`);
     }
   };
 
@@ -88,19 +87,36 @@ export default function HomePage() {
         <div className="task-list-options">
           <h2>Welcome, {username}!</h2>
 
-          <div className="option-card">
-            <h3>Create New Task List</h3>
-            <form onSubmit={handleCreateTaskList}>
-              <input
-                type="text"
-                placeholder="Task List Title"
-                value={newTaskListTitle}
-                onChange={(e) => setNewTaskListTitle(e.target.value)}
-                required
-              />
-              <button type="submit">Create Task List</button>
-            </form>
-          </div>
+          {taskList ? (
+            <div className="option-card my-task-list">
+              <h3>Your Task List</h3>
+              <p>You already have a task list created.</p>
+              <div className="task-id-container">
+                <span>Task List ID:</span>
+                <code className="task-id">{taskList.id}</code>
+              </div>
+              <button
+                className="go-to-task-list-button"
+                onClick={handleGoToMyTaskList}
+              >
+                Go to My Task List
+              </button>
+            </div>
+          ) : (
+            <div className="option-card">
+              <h3>Create New Task List</h3>
+              <form onSubmit={handleCreateTaskList}>
+                <input
+                  type="text"
+                  placeholder="Task List Title"
+                  value={newTaskListTitle}
+                  onChange={(e) => setNewTaskListTitle(e.target.value)}
+                  required
+                />
+                <button type="submit">Create Task List</button>
+              </form>
+            </div>
+          )}
 
           <div className="option-card">
             <h3>Join Existing Task List</h3>

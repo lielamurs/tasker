@@ -34,10 +34,10 @@ export default function TaskListPage() {
 
   // Redirect if no username
   useEffect(() => {
-    if (!username) {
+    if (!username && !isLoading) {
       navigate("/");
     }
-  }, [username, navigate]);
+  }, [username, navigate, isLoading]);
 
   // Handle task creation
   const handleCreateTask = useCallback(
@@ -98,8 +98,19 @@ export default function TaskListPage() {
           <button
             className="share-button"
             onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              alert("Link copied to clipboard!");
+              if (taskList) {
+                navigator.clipboard.writeText(taskList.id);
+                const notification = document.createElement("div");
+                notification.className = "copy-notification";
+                notification.textContent = "Task List ID copied to clipboard!";
+                document.body.appendChild(notification);
+                setTimeout(() => {
+                  notification.classList.add("fade-out");
+                  setTimeout(() => {
+                    document.body.removeChild(notification);
+                  }, 300);
+                }, 2000);
+              }
             }}
           >
             Share Task List

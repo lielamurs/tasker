@@ -11,7 +11,10 @@ export default function App() {
     <BrowserRouter>
       <div className="app">
         <header className="app-header">
-          <h1>Collaborative Task App</h1>
+          <div className="app-logo">
+            <span className="logo-icon">✓</span>
+            <h1>Tasker</h1>
+          </div>
         </header>
         <main className="app-content">
           <Suspense fallback={<div className="loading">Loading...</div>}>
@@ -22,7 +25,7 @@ export default function App() {
           </Suspense>
         </main>
         <footer className="app-footer">
-          <p>Real-time Collaboration Demo &copy; {new Date().getFullYear()}</p>
+          <p>Tasker &copy; {new Date().getFullYear()}</p>
         </footer>
       </div>
     </BrowserRouter>
